@@ -5,21 +5,19 @@ services:
     build:
       context: ../FantasyF1-Auth
     container_name: auth-service
-    ports:
-      - "${AUTH_PORT}:${AUTH_PORT}"
     env_file: .env
     networks:
       - backend
+      - kong-net
 
   business-logic:
     build:
       context: ../FantasyF1
     container_name: logic-service
-    ports:
-      - "${API_PORT}:${API_PORT}"
     env_file: .env
     networks:
       - backend
+      - kong-net
 
   dbapi:
     build:
@@ -58,10 +56,59 @@ services:
       - mongo
     networks:
       - db-net
+      - kong-net
+
+  kong:
+    image: kong:latest # Use a specific version in production, e.g., kong:3.4
+    container_name: my-kong-gateway
+    user: kong # Run as non-root user (good practice)
+    environment:
+      KONG_DATABASE: 'off' # Use DB-less mode
+      KONG_DECLARATIVE_CONFIG: /usr/local/kong/declarative/kong.yml # Path to your declarative config
+      KONG_PROXY_ACCESS_LOG: /dev/stdout
+      KONG_ADMIN_ACCESS_LOG: /dev/stdout
+      KONG_PROXY_ERROR_LOG: /dev/stderr
+      KONG_ADMIN_ERROR_LOG: /dev/stderr
+      KONG_ADMIN_LISTEN: '0.0.0.0:8001' # Admin API listens on all interfaces (useful for external tools if needed, secure it!)
+      KONG_ADMIN_GUI_URL: http://localhost:8002 # If you use Kong Manager
+      # KONG_LOG_LEVEL: debug # For more verbose logging during setup
+    networks:
+      - kong-net
+    ports:
+      - "8000:8000" # Proxy port for HTTP traffic
+      - "8443:8443" # Proxy port for HTTPS traffic (if you set up SSL)
+      - "8001:8001" # Admin API port
+      - "8002:8002" # Kong Manager UI (if you deploy it, see optional step below)
+    volumes:
+      - ./kong_declarative_config:/usr/local/kong/declarative # Mount your declarative config file
+    healthcheck: # Optional but good
+      test: ["CMD", "kong", "health"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+
+  portainer:
+    image: portainer/portainer-ce:latest # Or a specific version like portainer/portainer-ce:2.19.4
+    container_name: portainer
+    ports:
+      - "9443:9443" # Secure HTTPS port for Portainer UI
+      - "9000:9000" # Or use 9000 for HTTP if you prefer (less secure)
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock # Gives Portainer access to Docker daemon
+      - portainer_data:/data                    # Persistent storage for Portainer's database
+    restart: unless-stopped
+    # networks: # Portainer doesn't strictly need to be on your app networks to manage them
+              # It uses the Docker socket. But you can add it if you have a reason.
+              # - kong-net # For example, if you ever wanted to proxy Portainer via Kong (advanced)
+    security_opt: # Good practice, though some systems might have issues if SELinux/AppArmor is strict
+      - no-new-privileges:true
 
 volumes:
   mongo-data:
+  kong_declarative_config: {}
+  portainer_data: {}
 
 networks:
   backend:
   db-net:
+  kong-net:

@@ -1,0 +1,23 @@
+# ./kong_declarative_config/kong.yml
+
+_format_version: "3.0"
+_transform: true
+
+services:
+  - name: auth
+    host: auth
+    port: 9001
+    protocol: http
+    routes:
+      - name: auth-route
+        paths:
+          - /auth # Requests to http://localhost:8000/auth will go to auth service
+
+  - name: business-logic
+    host: business-logic
+    port: 9000
+    protocol: http
+    routes:
+      - name: business-logic-route
+        paths:
+          - /api # Requests to http://localhost:8000/api will go to business-logic service
