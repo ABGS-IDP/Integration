@@ -25,7 +25,7 @@ jobs:
             cd Integration && git pull
           else
             echo "Cloning repo..."
-            git clone https://github.com/<user>/Integration.git
+            git clone https://github.com/ABGS-IDP/Integration.git
             cd Integration
           fi
 
