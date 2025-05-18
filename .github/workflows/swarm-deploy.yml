@@ -19,6 +19,8 @@ jobs:
         username: ${{ secrets.SSH_USER }}
         key: ${{ secrets.SSH_KEY }}
         script: |
+          set -xe  # e = fail fast, x = verbose trace
+        
           cd /root
           if [ -d "Integration" ]; then
             echo "Repo already exists. Pulling latest changes..."
@@ -28,7 +30,18 @@ jobs:
             git clone https://github.com/ABGS-IDP/Integration.git
             cd Integration
           fi
-
-          echo "Deploying stack..."
+        
+          echo "--- Checking Docker Compose version ---"
+          docker compose version
+        
+          echo "--- Pulling latest images ---"
           docker compose pull
+        
+          echo "--- Deploying stack ---"
           docker compose up -d
+        
+          echo "--- Active containers ---"
+          docker ps
+        
+          echo "--- Logs (short tail) ---"
+          docker compose logs --tail=20
