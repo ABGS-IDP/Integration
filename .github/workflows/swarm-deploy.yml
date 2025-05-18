@@ -1,47 +1,34 @@
-name: Deploy to Swarm
+name: Deploy to Play with Docker
 
 on:
   push:
-    branches: [main]
-  workflow_dispatch:   # ← permite rulare manuală
-  repository_dispatch:
-    types: [swarm-deploy]
+    branches:
+      - main
+  workflow_dispatch:
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
-    - name: SSH and deploy on PWD
+    - name: Checkout Integration repo
+      uses: actions/checkout@v3
+
+    - name: Copy deploy script to PWD
+      uses: appleboy/scp-action@v0.1.4
+      with:
+        host: ${{ secrets.SSH_HOST }}
+        username: ${{ secrets.SSH_USER }}
+        key: ${{ secrets.SSH_KEY }}
+        source: "deploy.sh"
+        target: "/root"
+
+    - name: SSH and execute deploy script
       uses: appleboy/ssh-action@v1.0.0
       with:
         host: ${{ secrets.SSH_HOST }}
         username: ${{ secrets.SSH_USER }}
         key: ${{ secrets.SSH_KEY }}
         script: |
-          set -xe  # e = fail fast, x = verbose trace
-        
-          cd /root
-          if [ -d "Integration" ]; then
-            echo "Repo already exists. Pulling latest changes..."
-            cd Integration && git pull
-          else
-            echo "Cloning repo..."
-            git clone https://github.com/ABGS-IDP/Integration.git
-            cd Integration
-          fi
-        
-          echo "--- Checking Docker Compose version ---"
-          docker compose version
-        
-          echo "--- Pulling latest images ---"
-          docker compose pull
-        
-          echo "--- Deploying stack ---"
-          docker compose up -d
-        
-          echo "--- Active containers ---"
-          docker ps
-        
-          echo "--- Logs (short tail) ---"
-          docker compose logs --tail=20
+          chmod +x /root/deploy.sh
+          bash /root/deploy.sh
