@@ -10,26 +10,28 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: SSH and execute deploy.sh from repo
+    - name: SSH and execute deploy inline
       uses: appleboy/ssh-action@v1.0.0
       with:
         host: ${{ secrets.SSH_HOST }}
         username: ${{ secrets.SSH_USER }}
         key: ${{ secrets.SSH_KEY }}
         script: |
-          cd ~
-          if [ -d "Integration" ]; then
-            echo "Repo already exists. Pulling latest changes..."
-            cd Integration
-            git fetch origin
-            git checkout main
-            git pull origin main
-          else
-            echo "Cloning repo..."
-            git clone https://github.com/ABGS-IDP/Integration.git
-            cd Integration
-          fi
+          nohup sh -c '
+            cd ~
+            if [ -d "Integration" ]; then
+              echo "Repo already exists. Pulling latest changes..." >> deploy.log
+              cd Integration
+              git fetch origin >> deploy.log 2>&1
+              git checkout main >> deploy.log 2>&1
+              git pull origin main >> deploy.log 2>&1
+            else
+              echo "Cloning repo..." >> deploy.log
+              git clone https://github.com/ABGS-IDP/Integration.git >> deploy.log 2>&1
+              cd Integration
+            fi
 
-          echo "--- Running deploy.sh from repo ---"
-          chmod +x deploy.sh
-          ./deploy.sh
+            echo "--- Starting deployment ---" >> deploy.log
+            chmod +x deploy.sh >> deploy.log 2>&1
+            ./deploy.sh >> deploy.log 2>&1
+          ' > /dev/null 2>&1 &
