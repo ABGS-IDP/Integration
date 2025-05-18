@@ -2,8 +2,7 @@ name: Deploy to Play with Docker
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
   workflow_dispatch:
 
 jobs:
@@ -11,24 +10,26 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout Integration repo
-      uses: actions/checkout@v3
-
-    - name: Copy deploy script to PWD
-      uses: appleboy/scp-action@v0.1.4
-      with:
-        host: ${{ secrets.SSH_HOST }}
-        username: ${{ secrets.SSH_USER }}
-        key: ${{ secrets.SSH_KEY }}
-        source: "deploy.sh"
-        target: "/root"
-
-    - name: SSH and execute deploy script
+    - name: SSH and execute deploy.sh from repo
       uses: appleboy/ssh-action@v1.0.0
       with:
         host: ${{ secrets.SSH_HOST }}
         username: ${{ secrets.SSH_USER }}
         key: ${{ secrets.SSH_KEY }}
         script: |
-          chmod +x /root/deploy.sh
-          bash /root/deploy.sh
+          cd ~
+          if [ -d "Integration" ]; then
+            echo "Repo already exists. Pulling latest changes..."
+            cd Integration
+            git fetch origin
+            git checkout main
+            git pull origin main
+          else
+            echo "Cloning repo..."
+            git clone https://github.com/ABGS-IDP/Integration.git
+            cd Integration
+          fi
+
+          echo "--- Running deploy.sh from repo ---"
+          chmod +x deploy.sh
+          ./deploy.sh
