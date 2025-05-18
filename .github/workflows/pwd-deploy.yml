@@ -32,6 +32,7 @@ jobs:
               cd Integration
             fi
 
+            echo "SECRET_KEY=$(openssl rand -hex 32)" >> .env
             docker compose pull
             docker compose up -d
           ' > /dev/null 2>&1 &
