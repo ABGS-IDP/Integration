@@ -32,7 +32,13 @@ jobs:
               cd Integration
             fi
 
-            echo "SECRET_KEY=$(openssl rand -hex 32)" >> .env
+            SECRET_KEY=$(openssl rand -hex 32)
+            if grep -q "^SECRET_KEY=" .env; then
+              sed -i "s|^SECRET_KEY=.*|SECRET_KEY=$SECRET_KEY|" .env
+            else
+              echo "SECRET_KEY=$SECRET_KEY" >> .env
+            fi
+
             docker compose pull
             docker compose up -d
           ' > /dev/null 2>&1 &
