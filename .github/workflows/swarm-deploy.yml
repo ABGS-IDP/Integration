@@ -10,5 +10,25 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+
     steps:
-      - run: echo "Deploying..."
+    - name: SSH and deploy on PWD
+      uses: appleboy/ssh-action@v1.0.0
+      with:
+        host: ${{ secrets.SSH_HOST }}
+        username: ${{ secrets.SSH_USER }}
+        key: ${{ secrets.SSH_KEY }}
+        script: |
+          cd /root
+          if [ -d "Integration" ]; then
+            echo "Repo already exists. Pulling latest changes..."
+            cd Integration && git pull
+          else
+            echo "Cloning repo..."
+            git clone https://github.com/<user>/Integration.git
+            cd Integration
+          fi
+
+          echo "Deploying stack..."
+          docker-compose pull
+          docker-compose up -d
