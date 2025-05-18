@@ -3,7 +3,8 @@ name: Deploy to Play with Docker
 on:
   push:
     branches: [main]
-  workflow_dispatch:
+  repository_dispatch:
+    types: [deploy]
 
 jobs:
   deploy:
