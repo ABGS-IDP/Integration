@@ -1,0 +1,41 @@
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+
+scrape_configs:
+  - job_name: system # For Promtail's own logs and potentially host system logs
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: promtail
+          __path__: /var/log/promtail/*log # Path to Promtail's own logs (if any are written to file)
+
+  - job_name: docker_containers
+    docker_sd_configs:
+      - host: unix:///var/run/docker.sock
+        refresh_interval: 5s
+        # You can filter which containers Promtail scrapes logs from if needed:
+        # filters:
+        #   - name: label
+        #     values: ["logging=promtail"] # Only scrape containers with this label
+    relabel_configs:
+      # Relabel Docker container labels to Loki labels
+      - source_labels: ['__meta_docker_container_id']
+        target_label: 'container_id'
+      - source_labels: ['__meta_docker_container_name']
+        regex: '/(.*)' # Remove the leading slash from container names
+        target_label: 'container_name'
+      - source_labels: ['__meta_docker_container_label_com_docker_compose_service']
+        target_label: 'compose_service'
+      - source_labels: ['__meta_docker_container_label_com_docker_compose_project']
+        target_label: 'compose_project'
+      # Example: If you have a custom label on your services like "app=my-service"
+      # - source_labels: ['__meta_docker_container_label_app']
+      #   target_label: 'app'

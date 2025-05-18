@@ -8,6 +8,9 @@ services:
     networks:
       - backend
       - kong-net
+    labels:
+      - "logging=promtail" # If you enable filtering in promtail-config.yml
+      - "app=auth"
 
   business-logic:
     image: dariusstefan/fantasyf1:latest
@@ -16,6 +19,9 @@ services:
     networks:
       - backend
       - kong-net
+    labels:
+      - "logging=promtail"
+      - "app=business-logic"
 
   dbapi:
     image: dariusstefan/fantasyf1-dbapi:latest
@@ -26,6 +32,9 @@ services:
     networks:
       - backend
       - db-net
+    labels:
+      - "logging=promtail"
+      - "app=dbapi"
 
   mongo:
     image: mongo:latest
@@ -39,6 +48,9 @@ services:
       - mongo-data:/data/db
     networks:
       - db-net
+    labels:
+      - "logging=promtail"
+      - "app=mongo"
 
   mongo-express:
     image: mongo-express:latest
@@ -54,6 +66,9 @@ services:
     networks:
       - db-net
       - kong-net
+    labels:
+      - "logging=promtail"
+      - "app=mongo-express"
 
   kong:
     image: kong:latest # Use a specific version in production, e.g., kong:3.4
@@ -83,6 +98,9 @@ services:
       interval: 10s
       timeout: 10s
       retries: 10
+    labels:
+      - "logging=promtail"
+      - "app=kong"
 
   portainer:
     image: portainer/portainer-ce:latest # Or a specific version like portainer/portainer-ce:2.19.4
@@ -99,11 +117,73 @@ services:
               # - kong-net # For example, if you ever wanted to proxy Portainer via Kong (advanced)
     security_opt: # Good practice, though some systems might have issues if SELinux/AppArmor is strict
       - no-new-privileges:true
+    labels:
+      - "logging=promtail"
+      - "app=portainer"
+
+
+    # --- Logging Stack ---
+  loki:
+    image: grafana/loki:2.9.2 # Pin to a specific version
+    container_name: loki
+    ports:
+      - "3100:3100" # Loki API
+    volumes:
+      - ./loki-config.yml:/etc/loki/local-config.yaml
+      - loki_data:/loki # Persistent storage for logs
+    command: -config.file=/etc/loki/local-config.yaml
+    networks:
+      - kong-net # So Promtail and Grafana can reach it
+    restart: unless-stopped
+    labels:
+      - "app=loki" # Promtail will also scrape Loki's logs
+
+  promtail:
+    image: grafana/promtail:2.9.2 # Pin to a specific version
+    container_name: promtail
+    volumes:
+      - ./promtail-config.yml:/etc/promtail/config.yml
+      - /var/run/docker.sock:/var/run/docker.sock # To discover other containers
+      # If your containers also write logs to host-mounted volumes, you might need to mount those too.
+      # e.g. - /var/log:/var/log:ro
+    command: -config.file=/etc/promtail/config.yml
+    networks:
+      - kong-net # To send logs to Loki
+    depends_on:
+      - loki
+    restart: unless-stopped
+    # No labels needed here, as we don't typically scrape Promtail's logs with itself unless specified in its config
+
+  grafana:
+    image: grafana/grafana:10.2.0 # Pin to a specific version
+    container_name: grafana
+    ports:
+      - "9006:3000" # Grafana UI
+    volumes:
+      - grafana_data:/var/lib/grafana # Persistent storage for Grafana's db, dashboards, etc.
+      - ./grafana/provisioning/datasources:/etc/grafana/provisioning/datasources # Datasource provisioning
+      # You can also provision dashboards:
+      # - ./grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin # Change this in a real setup!
+      - GF_USERS_ALLOW_SIGN_UP=false
+      # - GF_LOG_LEVEL=debug # For troubleshooting
+    networks:
+      - kong-net # So it's accessible and can reach Loki
+    depends_on:
+      - loki
+    restart: unless-stopped
+    labels:
+      - "logging=promtail"
+      - "app=grafana"
 
 volumes:
   mongo-data:
   kong_declarative_config: {}
   portainer_data: {}
+  loki_data: {}
+  grafana_data: {}
 
 networks:
   backend:
