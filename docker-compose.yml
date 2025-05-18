@@ -2,8 +2,7 @@ version: "3.8"
 
 services:
   auth:
-    build:
-      context: ../FantasyF1-Auth
+    image: dariusstefan/fantasyf1-auth:latest
     container_name: auth-service
     env_file: .env
     networks:
@@ -11,8 +10,7 @@ services:
       - kong-net
 
   business-logic:
-    build:
-      context: ../FantasyF1
+    image: dariusstefan/fantasyf1:latest
     container_name: logic-service
     env_file: .env
     networks:
@@ -20,8 +18,7 @@ services:
       - kong-net
 
   dbapi:
-    build:
-      context: ../FantasyF1-DBAPI
+    image: dariusstefan/fantasyf1-dbapi:latest
     container_name: dbapi-service
     ports:
       - "${DBAPI_PORT}:${DBAPI_PORT}"

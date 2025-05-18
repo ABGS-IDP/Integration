@@ -1,0 +1,13 @@
+name: Deploy to Swarm
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:   # ← permite rulare manuală
+  repository_dispatch: # ← permite trigger de la alte repo-uri
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Deploying..."
